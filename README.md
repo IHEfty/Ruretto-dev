@@ -30,9 +30,7 @@ To run this game, you will need to have the Tender interpreter installed on your
     cd Ruretto-dev
     ```
 
-2. Install [Tender](https://github.com/2dprototype/tender) on your machine.
-
-3. Run the roulette game:
+4. Run the roulette game:
     ```sh
     tender main.td
     ```
