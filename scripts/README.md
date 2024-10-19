@@ -33,38 +33,6 @@ In **$1Gambler**, players can place bets on various outcomes. The game is design
 
 Here's a brief overview of the main functionalities in the **$1gambler.td** file.
 
-```tender
-// Sample code snippet for handling bets
-var chars = "1234567890"
-var n = ""
-
-export fn(e, cm) {
-    // Capture number input and reset after 2 seconds
-    if includes(chars, e.rune) {
-        n += string(e.rune) 
-        go(fn(){
-            times.sleep(times.second*2)
-            n = ""
-        })
-    }
-    // Handle input confirmation for placing bets
-    else if e.code == 40 {
-        a := int(n)
-        if is_int(a) {
-            // Logic for placing a bet based on input
-            n = ""
-        }
-    }
-    // Reset on invalid input
-    else {
-        n = ""
-    }
-}
-```
-
-- **Input Handling**: The function captures user input for betting amounts and manages timeouts for input resets.
-- **Bet Confirmation**: When the player confirms their bet (usually by pressing Enter), the game processes the bet and checks if it's valid.
-
 ### User Data Management
 
 ```tender
