@@ -1,47 +1,117 @@
-# Termimage
+# $1Gambler
 
-The **Termimage** project is a part of the **1000+ Codes in Tender** collection. This project, written using the [**Tender**](https://github.com/2dprototype/tender-free) programming language, converts images to ASCII art and displays them in the terminal with optional color support.
+**$1Gambler** is a simple and interactive gambling game built using the Tender programming language. Players can place bets and experience the thrill of gambling in a user-friendly environment.
 
-## Requirements
+## Table of Contents
 
-To use this project, you need to install [**Tender**](https://github.com/2dprototype/tender-free). Clone and install Tender by following the instructions from the Tender GitHub repository:
+- [Features](#features)
+- [Gameplay Overview](#gameplay-overview)
+- [Code Explanation](#code-explanation)
+- [Installation](#installation)
+- [Usage](#usage)
+- [License](#license)
 
-```bash
-git clone https://github.com/2dprototype/tender-free.git
-cd tender-free
-```
+## Features
 
-## Running the Project
+- Simple betting interface for easy gameplay.
+- Quick input handling for placing bets.
+- User data management to save player settings and statistics.
+- Supports a variety of betting options.
 
-Once you have Tender installed, you can run the project using `cli.td`. Here's how:
+## Gameplay Overview
 
-```bash
-tender cli.td
-```
+In **$1Gambler**, players can place bets on various outcomes. The game is designed to be intuitive, with an easy-to-use interface that allows players to enter their desired bet amounts quickly. 
 
-This command will render the embedded image `download.jpg` as ASCII art in the terminal.
+### Game Mechanics
+- Players input their bet amounts using the number keys.
+- The game confirms the bets and determines outcomes based on random results.
+- User data is saved, allowing players to pick up where they left off.
 
-### Customizing the Image
+## Code Explanation
 
-To display a different image, replace `download.jpg` with the name of your own image file. Make sure the image is saved in the same folder as the script.
+### Key Code Snippets
 
-Example:
+Here's a brief overview of the main functionalities in the **$1gambler.td** file.
 
 ```tender
-data := embed("your_image.jpg")
-sysout t.to_ascii(data, 40, 30, true)
+// Sample code snippet for handling bets
+var chars = "1234567890"
+var n = ""
+
+export fn(e, cm) {
+    // Capture number input and reset after 2 seconds
+    if includes(chars, e.rune) {
+        n += string(e.rune) 
+        go(fn(){
+            times.sleep(times.second*2)
+            n = ""
+        })
+    }
+    // Handle input confirmation for placing bets
+    else if e.code == 40 {
+        a := int(n)
+        if is_int(a) {
+            // Logic for placing a bet based on input
+            n = ""
+        }
+    }
+    // Reset on invalid input
+    else {
+        n = ""
+    }
+}
 ```
 
-Feel free to modify the width, height, and color settings by adjusting the parameters in the script.
+- **Input Handling**: The function captures user input for betting amounts and manages timeouts for input resets.
+- **Bet Confirmation**: When the player confirms their bet (usually by pressing Enter), the game processes the bet and checks if it's valid.
 
-## Project Structure
+### User Data Management
 
-- **termcolor.td**: Provides utilities for matching RGB values to ANSI color codes.
-- **termimage.td**: Contains the logic for decoding an image and converting it to ASCII art.
-- **cli.td**: The main script that processes and displays an embedded image.
+```tender
+import "fs"
+import "os"
+import "path"
 
-## Contribution to 1000+ Codes
+var user_dir = path.join(os.getenv("appdata"), "$1Gambler")
+var user_file = path.join(user_dir, "userdata.dat")
 
-This project serves as one of the many examples within the **1000+ Codes in Tender** repository. Explore and experiment with different images and settings to deepen your understanding of image processing in Tender!
+if !fs.exists(user_dir) {
+    fs.mkdir(user_dir)
+}
 
-Enjoy experimenting with different images and settings!
+fs.writefile(user_file, `{"betting_scale":1,"betting_chips":[],"points":1}`)
+```
+
+- **Directory Creation**: The game creates a user-specific directory to store user data.
+- **Data Initialization**: Sets up a default user data file with initial values for betting scale and points.
+
+## Installation
+
+To install **$1Gambler**, follow these steps:
+
+1. Clone the repository:
+
+   ```bash
+   git clone https://github.com/IHEfty/Ruretto-dev.git
+   cd Ruretto-dev
+   cd scripts
+   ```
+
+2. Ensure you have the Tender interpreter installed.
+
+3. Run the game:
+
+   ```bash
+   tender $1gambler.td
+   ```
+
+## Usage
+
+1. Launch the game using the Tender interpreter.
+2. Enter your desired bet amount using the number keys.
+3. Press Enter to confirm your bet.
+4. Your game progress and settings will be saved automatically for your next session.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
