@@ -173,11 +173,3 @@ tender run main.td
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-```
-
-### How to Use This README
-- Replace `https://github.com/yourusername/rurettoproject.git` with the actual repository URL.
-- Include any additional installation or usage instructions relevant to your project.
-- Ensure that the LICENSE section reflects the actual license you're using for your project.
-
-Feel free to modify any sections to better fit your project's specifics! Let me know if you need further adjustments or additional information.
