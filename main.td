@@ -4,23 +4,21 @@ import "json"
 import "math"
 import "os"
 import "path"
-import "audio"
 import "fs"
-import "helper/randint" // https://github.com/2dprototype/tender-free/blob/master/pkg/helper/randint.td
+import "helper/randint"
 import "table"
 import "funcs"
 import "wheel"
 import "rules"
-import "drawchip"
+import "draw_chip"
 import "theme"
+import "cheat"
 
-// Comment out this code to generate logo
 // ctx := canvas.new_context(500, 500)
-// drawchip(ctx, 250, 250, "", 600)
+// draw_chip(ctx, 250, 250, "", 600)
 // ctx.save_png("icon.png")
 // os.exit(0)
 
-audio.init()
 
 var user_dir = path.join(os.getenv("appdata"), "Rūretto")
 var user_file = path.join(user_dir, "userdata.dat")
@@ -31,8 +29,7 @@ if !fs.exists(user_dir) {
 var global = {
 	points: 25000,
 	betting_scale: 10,
-	betting_chips: [],
-	last_won: 0
+	betting_chips: []
 }
 
 var w = 700
@@ -44,14 +41,15 @@ var betting_scale_index = 0
 var bounds = []
 var previous_bet = null
 var previous_bet_index = null
-var scale = 30
-var b_x = w/2 - 2.3*scale
-var b_y = h/2 - 3.5*scale
-var radius = 3.5*scale
+var b_size = 30
+var b_x = w/2 - 2.3*b_size
+var b_y = h/2 - 3.5*b_size
+var radius = 3.5*b_size
 var cy = b_y + 100
 var cx = b_x - 150
 var is_gameover = false
-var font_data = embed("res/IBMPlexSans-Bold.ttf")
+//var font_data = embed("res/IBMPlexSans-Bold.ttf")
+var font_data = embed("res/Death_Note_Font_by_Karlibell22.ttf")
 var comment = ""
 
 fn save_file(){
@@ -63,9 +61,8 @@ fn load_file() {
 		data := fs.readfile(user_file)
 		obj := json.decode(data)
 		if !is_error(obj) {
-			global.points = int(obj.points) || 0
-			global.betting_scale = int(obj.betting_scale) || 0
-			global.last_won = int(obj.last_won) || 0
+			global.points = int(obj.points)
+			global.betting_scale = int(obj.betting_scale)
 			global.betting_chips = obj.betting_chips
 			if global.betting_scale == global.points {
 				betting_scale_index = -1
@@ -92,41 +89,37 @@ fn load_file() {
 	}
 }
 
-var last_points = global.points
-
 fn reset(){
 	global.points = 25000
 	global.betting_scale = 10
-	global.last_won = 0
 	global.betting_chips = []
 	is_gameover = false
 	comment = ""
 	save_file()
-	last_points = global.points
 }
 
 fn draw(ctx) {
-	scale = w/23
-	if scale > 45 {
-		scale = 45
+	b_size = w/23
+	if b_size > 40 {
+		b_size = 40
 	}
-	b_x = w/2 - 2.3*scale
-	b_y = h/2 - 3.5*scale
-	radius = 3.5*scale
-	cy = b_y + 3.33*scale
-	cx = b_x - 5*scale
+	b_x = w/2 - 2.3*b_size
+	b_y = h/2 - 3.5*b_size
+	radius = 3.5*b_size
+	cy = b_y + 3.33*b_size
+	cx = b_x - 5*b_size
 	
 	bounds = []
 	ctx.hex(theme.bg)
 	ctx.clear()
-	ctx.fontface(font_data, scale/2.5)
+	ctx.fontface(font_data, b_size/2.5)
 	ctx.linewidth(1.2)
 	for i, items in table {
 		for j, item in items {
 			ctx.hex(item.color)
-			x := b_x + i*scale
-			y := b_y + j*scale
-			ctx.rect(x, y, scale, scale)
+			x := b_x + i*b_size
+			y := b_y + j*b_size
+			ctx.rect(x, y, b_size, b_size)
 			ctx.fill()	
 			if item.color == theme.red {
 				ctx.hex(theme.black)
@@ -135,29 +128,29 @@ fn draw(ctx) {
 				ctx.hex(theme.red)
 			}
 			kl := ctx.measure_text(item.number)
-			ctx.text(item.number, x - (kl[0]/2) + scale/2, y + (kl[1]/2)  + scale/2)
+			ctx.text(item.number, x - (kl[0]/2) + b_size/2, y + (kl[1]/2)  + b_size/2)
 			ctx.fill()	
-			bounds.push([x, y, scale, scale, item.number])
+			bounds.push([x, y, b_size, b_size, item.number])
 		}
 	}
 	for i := 0; i < 3; i++ {
 		ctx.hex(theme.white)
-		x := b_x + i*scale*4
-		y := b_y + 3*scale
+		x := b_x + i*b_size*4
+		y := b_y + 3*b_size
 		ctx.hex(theme.white + "09")		
-		ctx.rect(x, y, scale*4, scale)
+		ctx.rect(x, y, b_size*4, b_size)
 		ctx.fill()
 		label := format(`%d to %d`, (i*12)+1, (i+1)*12)
 		kl := ctx.measure_text(label)
 		ctx.hex(theme.white + "90")		
-		ctx.text(label, x - (kl[0]/2) + scale*2, y + (kl[1]/2)  + scale/2)
+		ctx.text(label, x - (kl[0]/2) + b_size*2, y + (kl[1]/2)  + b_size/2)
 		ctx.fill()
-		bounds.push([x, y, scale*4, scale, 40+i])		
+		bounds.push([x, y, b_size*4, b_size, 40+i])		
 	}
 	labels := ["1-18", "EVEN", "RED", "BLACK", "ODD", "19-36"]
 	for i := 0; i < 6; i++ {
-		x := b_x + i*scale*2
-		y := b_y + 4*scale
+		x := b_x + i*b_size*2
+		y := b_y + 4*b_size
 		ctx.hex(theme.white + "09")		
 		if i == 2 {
 			ctx.hex(theme.red)
@@ -165,70 +158,70 @@ fn draw(ctx) {
 		else if i == 3 {
 			ctx.hex(theme.black)
 		}
-		ctx.rect(x, y, scale*2, scale)
+		ctx.rect(x, y, b_size*2, b_size)
 		ctx.fill()	
 		ctx.hex(theme.white + "90")
 		kl := ctx.measure_text(labels[i])
-		ctx.text(labels[i], x - (kl[0]/2) + scale, y + (kl[1]/2)  + scale/2)
+		ctx.text(labels[i], x - (kl[0]/2) + b_size, y + (kl[1]/2)  + b_size/2)
 		ctx.fill()
-		bounds.push([x, y, scale*2, scale, 43+i])
+		bounds.push([x, y, b_size*2, b_size, 43+i])
 	}
 	for j := 0; j < 3; j++ {
-		x := b_x + 12*scale
-		y := b_y + j*scale
+		x := b_x + 12*b_size
+		y := b_y + j*b_size
 		ctx.hex(theme.white + "09")
-		ctx.rect(x, y, scale, scale)
+		ctx.rect(x, y, b_size, b_size)
 		ctx.fill()
 		ctx.hex(theme.white + "90")
 		kl := ctx.measure_text("2-1")
-		ctx.text("2-1", x - (kl[0]/2) + scale/2, y + (kl[1]/2)  + scale/2)
+		ctx.text("2-1", x - (kl[0]/2) + b_size/2, y + (kl[1]/2)  + b_size/2)
 		ctx.fill()
-		bounds.push([x, y, scale, scale, 49+j])		
+		bounds.push([x, y, b_size, b_size, 49+j])		
 	}
 	
 	
-	x := b_x - scale
+	x := b_x - b_size
 	y := b_y
 	label := 0
 	kl := ctx.measure_text(label)
 	ctx.hex(theme.green)
-	ctx.rect(x, y, scale, scale*3)
+	ctx.rect(x, y, b_size, b_size*3)
 	ctx.fill()
 
 	ctx.hex(theme.black)
-	ctx.text(label, x - (kl[0]/2) + scale/2, y + (kl[1]/2)  + scale*1.5)
+	ctx.text(label, x - (kl[0]/2) + b_size/2, y + (kl[1]/2)  + b_size*1.5)
 	ctx.stroke()
-	bounds.push([x, y, scale, scale*3, 0])		
+	bounds.push([x, y, b_size, b_size*3, 0])		
 	
 	if is_gameover {
 		x := b_x 
-		y := b_y + 7*scale
+		y := b_y + 7*b_size
 		label := "Play Again?"
 		kl := ctx.measure_text(label)
 		ctx.hex(theme.white)
-		ctx.rect(x, y, scale*4, scale)
+		ctx.rect(x, y, b_size*4, b_size)
 		ctx.fill()	
 		ctx.hex(theme.black)
-		ctx.text(label, x - kl[0]/2 + scale*2, y + kl[1]/2  + scale/2)
+		ctx.text(label, x - kl[0]/2 + b_size*2, y + kl[1]/2  + b_size/2)
 		ctx.fill()	
-		bounds.push([x, y, scale*4, scale, 103])
+		bounds.push([x, y, b_size*4, b_size, 103])
 	}
 	else {
 		labels = ["CLEAR", "DOUBLE", "ALL", "SPIN"]
 		for i := 0; i < labels.length; i++ {
-			x := b_x + (i*1.2)*scale*2
-			y := b_y + 7*scale
+			x := b_x + (i*1.2)*b_size*2
+			y := b_y + 7*b_size
 			ctx.linewidth(1)
 			kl := ctx.measure_text(labels[i])
 			ctx.hex(theme.white + "80")
 			if global.betting_scale == global.points && labels[i] == "ALL" {
 				ctx.hex(theme.red)	
 			}
-			ctx.rect(x, y, scale*2, scale)
+			ctx.rect(x, y, b_size*2, b_size)
 			ctx.stroke()	
-			ctx.text(labels[i], x - (kl[0]/2) + scale, y + (kl[1]/2)  + scale/2)
+			ctx.text(labels[i], x - (kl[0]/2) + b_size, y + (kl[1]/2)  + b_size/2)
 			ctx.fill()	
-			bounds.push([x, y, scale*2, scale, 100+i])
+			bounds.push([x, y, b_size*2, b_size, 100+i])
 		}
 	}
 	
@@ -256,7 +249,7 @@ fn draw(ctx) {
 		else if slot.color == theme.black {
 			ctx.hex(theme.red)
 		}
-		ctx.text(slot.number, radius - 0.6*scale, 5)
+		ctx.text(slot.number, radius - 0.6*b_size, 5)
 		ctx.fill()
 		ctx.pop()
 	}
@@ -271,17 +264,17 @@ fn draw(ctx) {
 	ctx.hex(theme.red)
 	ctx.linewidth(2)
 
-	ctx.circle(cx, cy, radius-0.8*scale)
+	ctx.circle(cx, cy, radius-0.8*b_size)
 	ctx.stroke()
 	
 	draw_wheel(0)
 	
 	ctx.hex(theme.bg)
-	ctx.circle(cx, cy, radius-1.66*scale)
+	ctx.circle(cx, cy, radius-1.66*b_size)
 	ctx.fill()
 	
 	ctx.hex(theme.red)
-	ctx.circle(cx, cy, radius-1.66*scale)
+	ctx.circle(cx, cy, radius-1.66*b_size)
 	ctx.stroke()
 
 	if previous_bet_index != null {
@@ -289,7 +282,7 @@ fn draw(ctx) {
 		ctx.translate(cx, cy)
 		ctx.rotate((previous_bet_index * a) + a / 2)
 		ctx.hex(theme.ball)
-		ctx.circle(radius-2*scale, 0, scale/7.9)
+		ctx.circle(radius-2*b_size, 0, 4)
 		ctx.fill()
 		ctx.pop()
 	}
@@ -303,29 +296,13 @@ fn draw(ctx) {
 	label = format(`$%s   $%s`, funcs.format_num_comma(global.points), funcs.format_num_comma(total_bet))
 	kl = ctx.measure_text(label)
 	ctx.hex(theme.white)
-	ctx.text(label, 10, scale/2 + kl[1]/2)
+	ctx.text(label, 10, b_size/2 + kl[1]/2)
 	ctx.fill()	
 
-	label = format(`$%s`, funcs.format_num_comma(global.last_won))
-	if global.last_won > 0 {
-		ctx.hex(theme.green)
-		label = format(`+$%s`, funcs.format_num_comma(global.last_won))
-	}
-	else if global.last_won < 0 {
-		ctx.hex(theme.red)
-		label = format(`-$%s`, funcs.format_num_comma(math.abs(global.last_won)))
-	}
-
-	lx := kl[0]
-	kl = ctx.measure_text(label)
-	ctx.text(label, 20 + lx, scale/2 + kl[1]/2)
-	ctx.fill()		
-
-	
 	if comment != "" {
 		kl2 := ctx.measure_text(comment)
 		ctx.hex(theme.white)
-		ctx.text(comment, b_x + scale*6 - kl2[0]/2, b_y - scale)
+		ctx.text(comment, b_x + b_size*6 - kl2[0]/2, b_y - b_size)
 		ctx.fill()
 		
 	}
@@ -336,7 +313,7 @@ fn draw(ctx) {
 		if previous_bet.color == theme.black {
 			ctx.hex(theme.white + "10")
 		}
-		ctx.circle(cx, cy, scale/2)
+		ctx.circle(cx, cy, 15)
 		ctx.fill()	
 		ctx.hex(theme.black)
 		if previous_bet.color == theme.red {
@@ -349,20 +326,20 @@ fn draw(ctx) {
 		ctx.fill()
 	}
 	
-	ctx.fontface(font_data, scale/3.8)
+	ctx.fontface(font_data, b_size/3.8)
 	
 	for i := 0; i < betting_scales.length; i++ {
 		if global.points >= betting_scales[i] {
-			x := b_x + (i*1.2)*scale/1.2 + scale/3
-			y := b_y + 6*scale
+			x := b_x + (i*1.2)*b_size/1.2 + b_size/3
+			y := b_y + 6*b_size
 			label := funcs.format_num(betting_scales[i])
 			if i == betting_scale_index {
 				ctx.hex(theme.white + "50")
-				ctx.circle(x, y, scale/2)
+				ctx.circle(x, y, b_size/2)
 				ctx.fill()
 			}
-			drawchip(ctx, x, y, label, scale)
-			bounds.push([x-scale/2.5, y-scale/2.5, scale*0.8, scale*0.8, 200+i])
+			draw_chip(ctx, x, y, label, b_size)
+			bounds.push([x-b_size/2.5, y-b_size/2.5, b_size*0.8, b_size*0.8, 200+i])
 		}
 	}
 	
@@ -378,7 +355,7 @@ fn draw(ctx) {
 		if bounds.length > chip[0] {
 			bound := bounds[int(chip[0])]
 			label := funcs.format_num(col[chip[0]])
-			drawchip(ctx, bound[0] + bound[2]/2, bound[1] + bound[3]/2, label, scale)
+			draw_chip(ctx, bound[0] + bound[2]/2, bound[1] + bound[3]/2, label, b_size)
 		}
 	}
 }
@@ -388,9 +365,14 @@ fn intro(ctx, window){
 	ctx.hex(theme.bg)
 	ctx.clear()
 	ctx.hex(theme.white)
-	ctx.fontface(font_data, scale)
+
+	ctx.fontface(font_data, b_size/2.5)
+	kw := ctx.measure_text("POWERED BY CORNTOONZ")
+	ctx.text("POWERED BY CORNTOONZ", w/2 - kw[0]/2, h/2 - kw[1]/2 + 35)
+	ctx.stroke()
 	
-	kw := ctx.measure_text("2DPROTOTYPE")
+	ctx.fontface(font_data, b_size)
+	kw = ctx.measure_text("2DPROTOTYPE")
 	ctx.text("2DPROTOTYPE", w/2 - kw[0]/2, h/2 - kw[1]/2)
 	ctx.rect(w/2 - kw[0]/2, h/2, kw[0], 10)
 	ctx.stroke()
@@ -404,11 +386,14 @@ fn intro(ctx, window){
 	}
 }
 
+var cheat_map = {
+	i : null
+}
+
 canvas.new_window(w, h, "Rūretto", fn(window){
 	ctx := window.new_context(w, h)
 	intro(ctx, window)
 	load_file()
-	last_points = global.points
 	draw(ctx)
 	window.update(w, h)
 	for {
@@ -422,6 +407,9 @@ canvas.new_window(w, h, "Rūretto", fn(window){
 		}
 		else if e.type == "lifecycle" && e.from == 3 && e.to == 0 {
 			break
+		}
+		else if e.type == "key" && e.direction == 1 {
+			cheat(e, cheat_map)
 		}
 		else if e.type == "mouse" && e.direction == 1 {
 			for b_index, b in bounds {
@@ -499,30 +487,29 @@ canvas.new_window(w, h, "Rūretto", fn(window){
 					}
  					else if id == 103 {
 						index := randint(0, wheel.length - 1)
+						if cheat_map.i != null {
+							index = cheat_map.i 
+						}
 						luck := wheel[index]
 						fn(){
 							var slots = wheel.length
 							var a = 2 * math.pi / slots
-							ii := index
-							if ii < 10 {
-								ii = index+36
-							}
-							for i := 0; i < ii; i++ {
+							for i := 0; i < index; i++ {
 								start_angle := i * a
 								end_angle := start_angle + a
 
 								ctx.hex(theme.bg)
-								ctx.circle(cx, cy, radius-1.66*scale)
+								ctx.circle(cx, cy, radius-1.66*b_size)
 								ctx.fill()
 								ctx.hex(theme.red)
-								ctx.circle(cx, cy, radius-1.66*scale)
+								ctx.circle(cx, cy, radius-1.66*b_size)
 								ctx.stroke()
 								
 								ctx.push()
 								ctx.translate(cx, cy)
 								ctx.rotate(start_angle + a / 2)
-								ctx.hex(theme.ball)
-								ctx.circle(radius-2*scale, 0, scale/7.9)
+								ctx.hex("#ff0")
+								ctx.circle(radius-2*b_size, 0, 4)
 								ctx.fill()
 								ctx.pop()
 								
@@ -531,15 +518,6 @@ canvas.new_window(w, h, "Rūretto", fn(window){
 							}
 						}()
 						rules(global, luck)
-						global.last_won = global.points - last_points
-						if global.last_won < 0 {
-							go(fn(){
-								a := audio.player(embed("res/wooh.mp3"))
-								a.play()
-								for a.is_playing() {}
-							})
-						}
-						last_points = global.points
 						global.betting_chips = []
 						previous_bet = luck
 						previous_bet_index = index
@@ -553,6 +531,7 @@ canvas.new_window(w, h, "Rūretto", fn(window){
 						else if global.points < 1000000000 {
 							comment = ""
 						}
+						cheat_map.i = null
 					} 
 					draw(ctx)
 					window.update(w, h)
