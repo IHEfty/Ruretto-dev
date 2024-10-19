@@ -26,11 +26,11 @@ To run this game, you will need to have the Tender interpreter installed on your
 
 3. **Clone the Repository**:
     ```sh
-    git clone https://github.com/2dprototype/Ruretto.git
-    cd Ruretto
+    git clone https://github.com/IHEfty/Ruretto-dev.git
+    cd Ruretto-dev
     ```
 
-2. Install [Tender](https://github.com/2dprototype/tender-free) on your machine.
+2. Install [Tender](https://github.com/2dprototype/tender) on your machine.
 
 3. Run the roulette game:
     ```sh
