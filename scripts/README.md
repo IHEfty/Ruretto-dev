@@ -1,6 +1,6 @@
 # $1Gambler
 
-**$1Gambler** is a simple and interactive gambling game built using the Tender programming language. Players can place bets and experience the thrill of gambling in a user-friendly environment.
+**$1Gambler** is a simple and interactive gambling game built using the [**Tender**](https://github.com/2dprototype/tender). Players can place bets and experience the thrill of gambling in a user-friendly environment.
 
 ## Table of Contents
 
