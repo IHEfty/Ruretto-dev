@@ -156,7 +156,7 @@ fs.writefile(user_file, `{"betting_scale":1,"betting_chips":[],"points":1}`)
 To install **Rūretto**, clone the repository and run the Tender interpreter with the provided scripts.
 
 ```bash
-git clone https://github.com/IHEfty/Ruretto-dev
+git clone https://github.com/IHEfty/Ruretto-dev.git
 cd Ruretto-dev
 tender main.td
 ```
