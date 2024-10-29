@@ -10,7 +10,7 @@ import "table"
 import "funcs"
 import "wheel"
 import "rules"
-import "draw_chip"
+import "drawchip"
 import "theme"
 import "cheat"
 
@@ -48,8 +48,8 @@ var radius = 3.5*b_size
 var cy = b_y + 100
 var cx = b_x - 150
 var is_gameover = false
-//var font_data = embed("res/IBMPlexSans-Bold.ttf")
-var font_data = embed("res/Death_Note_Font_by_Karlibell22.ttf")
+var font_data = embed("res/IBMPlexSans-Bold.ttf")
+// var font_data = embed("res/Death_Note_Font_by_Karlibell22.ttf")
 var comment = ""
 
 fn save_file(){
