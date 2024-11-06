@@ -151,16 +151,6 @@ fs.writefile(user_file, `{"betting_scale":1,"betting_chips":[],"points":1}`)
 - **Customization**: Allows players to return with their previous settings intact.
 - **Modularity and Organization**: Keeps user data organized and easily accessible.
 
-## Installation
-
-To install **Rūretto**, clone the repository and run the Tender interpreter with the provided scripts.
-
-```bash
-git clone https://github.com/IHEfty/Ruretto-dev.git
-cd Ruretto-dev
-tender main.td
-```
-
 ## Usage
 
 1. Launch the game using the Tender interpreter.
