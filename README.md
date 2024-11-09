@@ -9,7 +9,7 @@ This project is a simple yet engaging simulation of the roulette game, developed
 
 ## Preview
 
-![preview](./res/preview.gif)
+[![preview](./res/preview.gif)](./res/preview.mp4)
 
 ## Installation
 
