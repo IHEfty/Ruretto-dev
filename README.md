@@ -1,6 +1,7 @@
 # Rūretto dev
 
 **Rūretto** is an interactive casino game that allows players to place bets on a roulette wheel. This README provides an overview of the game's functionality, including the input handling mechanism and user data management.
+> For a quick overview, watch the video preview on [YouTube](https://youtu.be/6rcaxM3j9sU).
 
 
 ## Introduction
