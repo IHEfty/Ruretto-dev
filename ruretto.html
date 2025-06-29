@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Roulette Game (Canvas)</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: rgb(28,28,28); /* same as colors.black */
+  }
+  canvas {
+    display: block;
+  }
+  /* Use a bold sans-serif for “mainFont” and smaller for “smallFont” */
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@700&display=swap');
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+
+<script>
+(() => {
+  // Grab canvas and set up context
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  let windowWidth = window.innerWidth;
+  let windowHeight = window.innerHeight;
+  canvas.width = windowWidth;
+  canvas.height = windowHeight;
+
+  // ========== COLORS (converted from normalized floats to 0–255) ==========
+  const COLORS = {
+    black: 'rgb(28,28,28)',          // ~0.109804*255
+    white: 'rgb(255,255,255)',
+    trans: 'rgba(255,255,255,0.05)',
+    bg: 'rgb(28,28,28)',
+    chip: 'rgb(255,231,44)',         // ~1,0.905882,0.172549
+    ball: 'rgb(254,255,44)',         // ~0.996078,1,0.172549
+    green: 'rgb(38,203,33)',         // ~0.149020,0.796078,0.129412
+    red: 'rgb(255,44,44)'            // ~1,0.172549,0.172549
+  };
+
+  // ========== GAME STATE ==========
+  const defaultBet = 25000;
+  let bets = {};                     // key→chip amount (e.g. bets[5] = 100 means bet 100 on number 5)
+  let balance = defaultBet;
+  let prevBalance = balance;
+  let chipValue = 10;                // selected chip value for betting
+  let lastWon = 0;
+
+  let gridCellSize = 30;
+  let gridX = 0, gridY = 0;
+  let rouletteRadius = 100;
+  let centerX = 0, centerY = 0;
+
+  let currentAngle = 0;              // wheel rotation
+  let spinSpeed = 0;                 // how fast the wheel is spinning
+  let ballAngle = 0;                 // ball rotation angle around wheel
+  let ballSpeed = 0;                 // ball speed (linked to spinSpeed)
+  let prevMod = 0;                   // for tick logic (unused since no audio)
+
+  let landedNumber = null;
+  let landedColor = null;
+
+  const buttons = ['CLEAR','DOUBLE','ALL','SPIN'];
+  const bettingScales = [10,50,100,500,1000,5000,10000,50000,1000000,5000000,10000000,50000000];
+
+  // ===== FONTS =====
+  const mainFont = '700 20px "IBM Plex Sans", sans-serif';
+  const smallFont = '700 10px "IBM Plex Sans", sans-serif';
+
+  // ========== DEFINE ROULETTE SECTIONS ==========
+  // (same order as your LOVE2D `rouletteSections`)
+  const rouletteSections = [
+    { number: 0,  color: 'green' },
+    { number: 32, color: 'red'   },
+    { number: 15, color: 'black' },
+    { number: 19, color: 'red'   },
+    { number: 4,  color: 'black' },
+    { number: 21, color: 'red'   },
+    { number: 2,  color: 'black' },
+    { number: 25, color: 'red'   },
+    { number: 17, color: 'black' },
+    { number: 34, color: 'red'   },
+    { number: 6,  color: 'black' },
+    { number: 27, color: 'red'   },
+    { number: 13, color: 'black' },
+    { number: 36, color: 'red'   },
+    { number: 11, color: 'black' },
+    { number: 30, color: 'red'   },
+    { number: 8,  color: 'black' },
+    { number: 23, color: 'red'   },
+    { number: 10, color: 'black' },
+    { number: 5,  color: 'red'   },
+    { number: 24, color: 'black' },
+    { number: 16, color: 'red'   },
+    { number: 33, color: 'black' },
+    { number: 1,  color: 'red'   },
+    { number: 20, color: 'black' },
+    { number: 14, color: 'red'   },
+    { number: 31, color: 'black' },
+    { number: 9,  color: 'red'   },
+    { number: 22, color: 'black' },
+    { number: 18, color: 'red'   },
+    { number: 29, color: 'black' },
+    { number: 7,  color: 'red'   },
+    { number: 28, color: 'black' },
+    { number: 12, color: 'red'   },
+    { number: 35, color: 'black' },
+    { number: 3,  color: 'red'   },
+    { number: 26, color: 'black' }
+  ];
+
+  // ===== GRID FOR NUMBERS 1–36 =====
+  // Same shape as `rouletteGrid` in LOVE2D (12 rows ×3 columns, but stored row-wise).
+  const rouletteGrid = [
+    [ { num:3,  color:'red'   }, { num:2,  color:'black' }, { num:1,  color:'red'   } ],
+    [ { num:6,  color:'black' }, { num:5,  color:'red'   }, { num:4,  color:'black' } ],
+    [ { num:9,  color:'red'   }, { num:8,  color:'black' }, { num:7,  color:'red'   } ],
+    [ { num:12, color:'red'   }, { num:11, color:'black' }, { num:10, color:'black' } ],
+    [ { num:15, color:'black' }, { num:14, color:'red'   }, { num:13, color:'black' } ],
+    [ { num:18, color:'red'   }, { num:17, color:'black' }, { num:16, color:'red'   } ],
+    [ { num:21, color:'red'   }, { num:20, color:'black' }, { num:19, color:'black' } ],
+    [ { num:24, color:'black' }, { num:23, color:'red'   }, { num:22, color:'black' } ],
+    [ { num:27, color:'red'   }, { num:26, color:'black' }, { num:25, color:'red'   } ],
+    [ { num:30, color:'red'   }, { num:29, color:'black' }, { num:28, color:'red'   } ],
+    [ { num:33, color:'black' }, { num:32, color:'red'   }, { num:31, color:'black' } ],
+    [ { num:36, color:'red'   }, { num:35, color:'black' }, { num:34, color:'red'   } ]
+  ];
+
+  const rouletteCol1 = ['2-1','2-1','2-1'];
+  const rouletteRow1 = ['1 to 12','13 to 24','25 to 36'];
+  const rouletteRow2 = ['1-18','EVEN','RED','BLACK','ODD','19-36'];
+  const rouletteZero = '0';
+
+  // ========== UTILITIES ==========
+  function formatNum(n) {
+    if (n < 1000) return ''+n;
+    if (n < 1e6) return Math.floor(n/1000)+'K';
+    if (n < 1e9) return Math.floor(n/1e6)+'M';
+    if (n < 1e12) return Math.floor(n/1e9)+'B';
+    if (n < 1e15) return Math.floor(n/1e12)+'T';
+    if (n < 1e18) return Math.floor(n/1e15)+'Q';
+    return '∞';
+  }
+  function formatNumComma(n) {
+    let str = String(n), out='', commaCount=0;
+    for (let i=str.length-1; i>=0; i--) {
+      out = str[i] + out;
+      commaCount++;
+      if (commaCount===3 && i>0) {
+        out = ','+out;
+        commaCount = 0;
+      }
+    }
+    return out;
+  }
+  function clamp(v,min,max){ return v<min?min:(v>max?max:v); }
+
+  // ========== RESIZE HANDLING ==========
+  function onResize() {
+    windowWidth = window.innerWidth;
+    windowHeight = window.innerHeight;
+    canvas.width = windowWidth;
+    canvas.height = windowHeight;
+    // Recompute grid/wheel positions/sizes:
+    gridCellSize = Math.min(windowWidth / 23, 40);
+    gridX = windowWidth/2 - 2.3*gridCellSize;
+    gridY = windowHeight/2 - 3.5*gridCellSize;
+    rouletteRadius = 3.5*gridCellSize;
+    centerX = gridX - 5*gridCellSize;
+    centerY = gridY + 3.33*gridCellSize;
+  }
+  window.addEventListener('resize', onResize);
+  onResize();
+
+  // ========== DRAWING FUNCTIONS ==========
+  function drawChip(num, x, y, r) {
+    // r is cell size; draw 10 alternating arcs
+    const segAngle = (2*Math.PI)/10;
+    for(let i=0;i<10;i++){
+      ctx.beginPath();
+      const start = i * segAngle;
+      const end = start + segAngle;
+      ctx.fillStyle = (i%2===0 ? COLORS.chip : COLORS.white);
+      ctx.moveTo(x, y);
+      ctx.arc(x, y, r/2.5, start, end);
+      ctx.fill();
+    }
+    // inner circle
+    ctx.beginPath();
+    ctx.fillStyle = 'rgb(179,179,0)'; // approx (0.7,0.7,0)
+    ctx.arc(x, y, r/3.2, 0, Math.PI*2);
+    ctx.fill();
+
+    // number text
+    ctx.font = smallFont;
+    ctx.fillStyle = 'rgba(0,0,0,0.73)';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(formatNum(num), x, y);
+    ctx.font = mainFont;
+  }
+
+  function drawWheel() {
+    const n = rouletteSections.length;
+    const a = (2*Math.PI)/n;
+
+    for (let i=0; i<n; i++) {
+      const section = rouletteSections[i];
+      const angleStart = (i * a) + currentAngle;
+      const angleEnd   = angleStart + a;
+
+      // draw sector
+      ctx.beginPath();
+      ctx.fillStyle = COLORS[section.color];
+      ctx.moveTo(centerX, centerY);
+      ctx.arc(centerX, centerY, rouletteRadius, angleStart, angleEnd);
+      ctx.closePath();
+      ctx.fill();
+
+      // draw number label
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      ctx.rotate(angleStart + a/2);
+      ctx.fillStyle = (section.color==='green' ? COLORS.black : section.color==='red' ? COLORS.black : COLORS.red);
+      ctx.font = mainFont;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const tx = rouletteRadius - 0.6*gridCellSize;
+      ctx.fillText(section.number, tx, 0);
+      ctx.restore();
+    }
+
+    // outer ring indicator
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = COLORS.red;
+    ctx.beginPath();
+    // draw a small “pointer” arc (replicating arc("line","open",...))
+    ctx.arc(
+      centerX, centerY,
+      rouletteRadius - 0.8*gridCellSize,
+      currentAngle + 2*a,
+      currentAngle + n*a
+    );
+    ctx.stroke();
+
+    // black circle in center
+    ctx.beginPath();
+    ctx.fillStyle = COLORS.black;
+    ctx.arc(centerX, centerY, rouletteRadius - 1.66*gridCellSize, 0, Math.PI*2);
+    ctx.fill();
+
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.strokeStyle = COLORS.red;
+    ctx.arc(centerX, centerY, rouletteRadius - 1.66*gridCellSize, 0, Math.PI*2);
+    ctx.stroke();
+
+    // if landed, draw result on center
+    if (landedNumber !== null) {
+      ctx.beginPath();
+      ctx.fillStyle = (landedColor==='red' ? COLORS.red : landedColor==='black' ? COLORS.trans : COLORS.green);
+      ctx.arc(centerX, centerY, 15, 0, Math.PI*2);
+      ctx.fill();
+
+      ctx.fillStyle = (landedColor==='black' ? COLORS.red : COLORS.black);
+      ctx.font = mainFont;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(landedNumber, centerX, centerY);
+    }
+
+    // draw the ball
+    const ballR = rouletteRadius - 2*gridCellSize;
+    const bx = centerX + Math.cos(ballAngle) * ballR;
+    const by = centerY + Math.sin(ballAngle) * ballR;
+    ctx.beginPath();
+    ctx.fillStyle = COLORS.ball;
+    ctx.arc(bx, by, 4.2, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  function drawBettingGrid() {
+    // ZERO cell (green)
+    ctx.fillStyle = COLORS.green;
+    ctx.fillRect(gridX - gridCellSize, gridY, gridCellSize, gridCellSize*3);
+    ctx.fillStyle = COLORS.black;
+    ctx.font = mainFont;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(rouletteZero, gridX - gridCellSize/2, gridY + gridCellSize*1.5);
+
+    if (bets[0] !== undefined) {
+      drawChip(bets[0], gridX - gridCellSize/2, gridY + gridCellSize*1.5, gridCellSize);
+    }
+
+    // Row1 (1-12, 13-24, 25-36)
+    for (let i = 0; i < rouletteRow1.length; i++) {
+      const str = rouletteRow1[i];
+      const cellSize = gridCellSize * 4;
+      const x = gridX + i*cellSize;
+      const y = gridY + 3*gridCellSize;
+
+      ctx.fillStyle = COLORS.trans;
+      ctx.fillRect(x, y, cellSize, gridCellSize);
+
+      ctx.fillStyle = COLORS.white;
+      ctx.font = mainFont;
+      ctx.fillText(str, x + cellSize/2, y + gridCellSize/2);
+
+      const betKey = 40 + (i+1);
+      if (bets[betKey] !== undefined) {
+        drawChip(bets[betKey], x + cellSize/2, y + gridCellSize/2, gridCellSize);
+      }
+    }
+
+    // Row2 (1-18, EVEN, RED, BLACK, ODD, 19-36)
+    for (let i = 0; i < rouletteRow2.length; i++) {
+      const str = rouletteRow2[i];
+      const cellSize = gridCellSize * 2;
+      const x = gridX + i*cellSize;
+      const y = gridY + 4*gridCellSize;
+
+      if (str==='RED')      ctx.fillStyle = COLORS.red;
+      else if (str==='BLACK')ctx.fillStyle = COLORS.black;
+      else                    ctx.fillStyle = COLORS.trans;
+      ctx.fillRect(x, y, cellSize, gridCellSize);
+
+      ctx.fillStyle = COLORS.white;
+      ctx.font = mainFont;
+      ctx.fillText(str, x + cellSize/2, y + gridCellSize/2);
+
+      const betKey = 50 + (i+1);
+      if (bets[betKey] !== undefined) {
+        drawChip(bets[betKey], x + cellSize/2, y + gridCellSize/2, gridCellSize);
+      }
+    }
+
+    // Col1 (2-1 x3)
+    for (let i = 0; i < rouletteCol1.length; i++) {
+      const str = rouletteCol1[i];
+      const x = gridX + gridCellSize*12;
+      const y = gridY + gridCellSize*i;
+      ctx.fillStyle = COLORS.trans;
+      ctx.fillRect(x, y, gridCellSize, gridCellSize);
+
+      ctx.fillStyle = COLORS.white;
+      ctx.font = mainFont;
+      ctx.fillText(str, x + gridCellSize/2, y + gridCellSize/2);
+
+      const betKey = 60 + (i+1);
+      if (bets[betKey] !== undefined) {
+        drawChip(bets[betKey], x + gridCellSize/2, y + gridCellSize/2, gridCellSize);
+      }
+    }
+
+    // Number grid (12×3)
+    for (let row = 0; row < rouletteGrid.length; row++) {
+      for (let col = 0; col < rouletteGrid[row].length; col++) {
+        const cell = rouletteGrid[row][col];
+        const x = gridX + row*gridCellSize;
+        const y = gridY + col*gridCellSize;
+
+        ctx.fillStyle = COLORS[cell.color];
+        ctx.fillRect(x, y, gridCellSize, gridCellSize);
+
+        ctx.fillStyle = (cell.color==='red' ? COLORS.black : COLORS.red);
+        ctx.font = mainFont;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(cell.num, x + gridCellSize/2, y + gridCellSize/2);
+
+        if (bets[cell.num] !== undefined) {
+          drawChip(bets[cell.num], x + gridCellSize/2, y + gridCellSize/2, gridCellSize);
+        }
+      }
+    }
+  }
+
+  function drawButtons() {
+    for (let i = 0; i < buttons.length; i++) {
+      const label = buttons[i];
+      const x = gridX + i*gridCellSize*2.4;
+      const y = gridY + gridCellSize*7;
+      ctx.fillStyle = COLORS.trans;
+      ctx.fillRect(x, y, gridCellSize*2, gridCellSize);
+
+      ctx.fillStyle = COLORS.white;
+      ctx.font = mainFont;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, x + gridCellSize, y + gridCellSize/2);
+    }
+  }
+
+  function drawBettingScales() {
+    for (let i = 0; i < bettingScales.length; i++) {
+      const val = bettingScales[i];
+      if (val <= balance) {
+        const x = gridX + gridCellSize*(i + (1 - 2/3));
+        const y = gridY + gridCellSize*6;
+        if (chipValue === val) {
+          ctx.fillStyle = 'rgba(255,255,255,0.3)';
+          ctx.beginPath();
+          ctx.arc(x, y, gridCellSize/2, 0, Math.PI*2);
+          ctx.fill();
+        }
+        drawChip(val, x, y, gridCellSize);
+      }
+    }
+  }
+
+  function drawUI() {
+    // background fill
+    ctx.fillStyle = COLORS.bg;
+    ctx.fillRect(0, 0, windowWidth, windowHeight);
+
+    // draw wheel and grid
+    drawWheel();
+    drawBettingGrid();
+    drawButtons();
+    drawBettingScales();
+
+    // display balances (left top)
+    let sumBets = 0;
+    for (let key in bets) sumBets += bets[key];
+    ctx.fillStyle = COLORS.white;
+    ctx.font = mainFont;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    const text = `$${formatNumComma(balance)}  $${formatNumComma(sumBets)}  $${formatNumComma(lastWon)}`;
+    ctx.fillText(text, 10, 10);
+  }
+
+  // ========== GAME UPDATE ==========
+  let lastTimestamp = 0;
+  function update(dt) {
+    if (spinSpeed > 0.25) {
+      currentAngle += spinSpeed * dt;
+      spinSpeed *= 0.99;
+      ballAngle -= ballSpeed * dt;
+      ballSpeed = Math.max(spinSpeed * 1.5, 0);
+      // no audio “tick” here
+    } else if (landedNumber === null && spinSpeed > 0) {
+      // Determine landing
+      const normalizedAngle = ((ballAngle - currentAngle) % (2*Math.PI) + 2*Math.PI) % (2*Math.PI);
+      const sectionSize = (2*Math.PI) / rouletteSections.length;
+      const landedIndex = Math.floor(normalizedAngle / sectionSize);
+      const sec = rouletteSections[landedIndex];
+      landedNumber = sec.number;
+      landedColor = sec.color;
+      checkBets(landedNumber, landedColor);
+      // If lastWon<0 we would have played losing sound—skipped.
+    }
+  }
+
+  function gameLoop(ts) {
+    const dt = (ts - lastTimestamp) / 1000;
+    lastTimestamp = ts;
+    update(dt);
+    drawUI();
+    requestAnimationFrame(gameLoop);
+  }
+  requestAnimationFrame(gameLoop);
+
+  // ========== MOUSE / INPUT HANDLING ==========
+  canvas.addEventListener('mousedown', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    if (e.button === 0) { // left click
+      handleButtonClick(mx, my);
+      handleGridClick(mx, my);
+    }
+  });
+
+  function handleButtonClick(x, y) {
+    for (let i = 0; i < buttons.length; i++) {
+      const bx = gridX + i*gridCellSize*2.4;
+      const by = gridY + gridCellSize*7;
+      if (x >= bx && x <= bx + gridCellSize*2 && y >= by && y <= by + gridCellSize) {
+        if (i === 0) { // CLEAR
+          for (let key in bets) {
+            balance += bets[key];
+          }
+          bets = {};
+        } else if (i === 1) { // DOUBLE
+          for (let key in bets) {
+            const d = bets[key]*2;
+            if (balance - (d - bets[key]) >= 0) {
+              balance += bets[key]; // return old
+              bets[key] = d;
+              balance -= d;
+            }
+          }
+        } else if (i === 2) { // ALL
+          chipValue = balance;
+        } else if (i === 3) { // SPIN
+          if (spinSpeed <= 0.25) {
+            spinSpeed = 6;
+            ballSpeed = spinSpeed * 1.5;
+            landedNumber = null;
+            landedColor = null;
+          }
+        }
+      }
+    }
+
+    // Betting scales clicks:
+    for (let i = 0; i < bettingScales.length; i++) {
+      const val = bettingScales[i];
+      const r = gridCellSize/2.5;
+      const bx = gridX + gridCellSize*(i + (1 - 2/3)) - r;
+      const by = gridY + gridCellSize*6 - r;
+      if (x >= bx && x <= bx + r*2 && y >= by && y <= by + r*2) {
+        if (val <= balance) {
+          chipValue = val;
+        }
+      }
+    }
+  }
+
+  function handleGridClick(x, y) {
+    // ZERO region:
+    if (x >= gridX - gridCellSize && x <= gridX && y >= gridY && y <= gridY + gridCellSize*3) {
+      const num = 0;
+      if (bets[num] === undefined && balance >= chipValue) {
+        bets[num] = chipValue;
+        balance -= chipValue;
+      } else if (bets[num] !== undefined) {
+        balance += bets[num];
+        delete bets[num];
+      }
+    }
+
+    // Row1 regions:
+    for (let i = 0; i < rouletteRow1.length; i++) {
+      const cellSize = gridCellSize * 4;
+      const cellX = gridX + i*cellSize;
+      const cellY = gridY + 3*gridCellSize;
+      if (x >= cellX && x <= cellX + cellSize && y >= cellY && y <= cellY + gridCellSize) {
+        const key = 40 + (i+1);
+        if (bets[key] === undefined && balance >= chipValue) {
+          bets[key] = chipValue;
+          balance -= chipValue;
+        } else if (bets[key] !== undefined) {
+          balance += bets[key];
+          delete bets[key];
+        }
+      }
+    }
+
+    // Row2 regions:
+    for (let i = 0; i < rouletteRow2.length; i++) {
+      const cellSize = gridCellSize * 2;
+      const cellX = gridX + i*cellSize;
+      const cellY = gridY + 4*gridCellSize;
+      if (x >= cellX && x <= cellX + cellSize && y >= cellY && y <= cellY + gridCellSize) {
+        const key = 50 + (i+1);
+        if (bets[key] === undefined && balance >= chipValue) {
+          bets[key] = chipValue;
+          balance -= chipValue;
+        } else if (bets[key] !== undefined) {
+          balance += bets[key];
+          delete bets[key];
+        }
+      }
+    }
+
+    // Col1 regions:
+    for (let i = 0; i < rouletteCol1.length; i++) {
+      const cellX = gridX + gridCellSize*12;
+      const cellY = gridY + gridCellSize*i;
+      if (x >= cellX && x <= cellX + gridCellSize && y >= cellY && y <= cellY + gridCellSize) {
+        const key = 60 + (i+1);
+        if (bets[key] === undefined && balance >= chipValue) {
+          bets[key] = chipValue;
+          balance -= chipValue;
+        } else if (bets[key] !== undefined) {
+          balance += bets[key];
+          delete bets[key];
+        }
+      }
+    }
+
+    // Number grid (1–36):
+    for (let row = 0; row < rouletteGrid.length; row++) {
+      for (let col = 0; col < rouletteGrid[row].length; col++) {
+        const cell = rouletteGrid[row][col];
+        const cellX = gridX + row*gridCellSize;
+        const cellY = gridY + col*gridCellSize;
+        if (x >= cellX && x <= cellX + gridCellSize && y >= cellY && y <= cellY + gridCellSize) {
+          const num = cell.num;
+          if (bets[num] === undefined && balance >= chipValue) {
+            bets[num] = chipValue;
+            balance -= chipValue;
+          } else if (bets[num] !== undefined) {
+            balance += bets[num];
+            delete bets[num];
+          }
+        }
+      }
+    }
+  }
+
+  // ========== BET CHECKING & PAYOUTS ==========
+  function checkBets(num, col) {
+    // Straight up (pay 36×)
+    if (bets[num] !== undefined && num >= 0 && num <=36) {
+      balance += bets[num] * 36;
+    }
+    // Row1 (1–12,13–24,25–36) keys 41,42,43
+    if (num>=1 && num<=12 && bets[41]!==undefined) {
+      balance += bets[41]*3;
+    } else if (num>=13 && num<=24 && bets[42]!==undefined) {
+      balance += bets[42]*3;
+    } else if (num>=25 && num<=36 && bets[43]!==undefined) {
+      balance += bets[43]*3;
+    }
+    // Row2 (1–18= key51, 19–36= key56) and Even/Odd
+    if (num>=1 && num<=18 && bets[51]!==undefined) {
+      balance += bets[51]*2;
+    } else if (num>=19 && num<=36 && bets[56]!==undefined) {
+      balance += bets[56]*2;
+    }
+    if (num%2===0 && bets[52]!==undefined) {
+      balance += bets[52]*2;
+    } else if (num%2!==0 && bets[55]!==undefined) {
+      balance += bets[55]*2;
+    }
+    // Red/Black (key53=RED, key54=BLACK)
+    if (col==='red' && bets[53]!==undefined) {
+      balance += bets[53]*2;
+    } else if (col==='black' && bets[54]!==undefined) {
+      balance += bets[54]*2;
+    }
+    // Columns (key61: 3,6,9,... ; key62: 2,5,8,... ; key63:1,4,7,...)
+    if (num>=3 && num<=36 && num%3===0 && bets[61]!==undefined) {
+      balance += bets[61]*3;
+    } else if (num>=2 && num<=35 && (num-2)%3===0 && bets[62]!==undefined) {
+      balance += bets[62]*3;
+    } else if (num>=1 && num<=34 && (num-1)%3===0 && bets[63]!==undefined) {
+      balance += bets[63]*3;
+    }
+
+    lastWon = balance - prevBalance;
+    if (lastWon < 0) {
+      // (in LOVE2D you triggered glitch & losing sound; here we simply leave glitch off)
+    }
+    prevBalance = balance;
+    bets = {}; // clear all bets after spin
+  }
+})();
+</script>
+</body>
+</html>
