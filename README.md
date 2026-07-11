@@ -51,44 +51,6 @@ To run this game, you will need to have the Tender interpreter installed on your
 - Automatic reset of input after a short period of inactivity.
 - Persistent user data storage for maintaining player settings and statistics.
 
-## Input Handling Function
-
-### Code Overview
-
-```tender
-var chars = "1234567890"
-var n = ""
-
-export fn(e, cm) {
-    // Capture number input and reset after 2 seconds
-    if includes(chars, e.rune) {
-        n += string(e.rune) 
-        go(fn(){
-            times.sleep(times.second*2)
-            n = ""
-        })
-    }
-    // Handle input confirmation for placing bets
-    else if e.code == 40 {
-        a := int(n)
-        if is_int(a) {
-            if a >= 0 && a <= 36 {
-                for i, w in wheel {
-                    if a == w.number {
-                        cm.i = i
-                    }
-                }
-            }
-            n = ""
-        }
-    }
-    // Reset on invalid input
-    else {
-        n = ""
-    }
-}
-```
-
 ### How It Works
 
 1. **Variable Initialization**:
